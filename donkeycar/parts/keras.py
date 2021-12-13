@@ -181,7 +181,7 @@ class KerasPilot(ABC):
             verbose=verbose,
             workers=1,
             use_multiprocessing=False)
-            
+
         if show_plot:
             try:
                 import matplotlib.pyplot as plt
@@ -215,7 +215,7 @@ class KerasPilot(ABC):
 
             except Exception as ex:
                 print(f"problems with loss graph: {ex}")
-            
+
         return history
 
     def x_transform(self, record: Union[TubRecord, List[TubRecord]]) -> XY:
@@ -371,6 +371,62 @@ class KerasLinear(KerasPilot):
                    'n_outputs1': tf.TensorShape([])})
         return shapes
 
+class imageCroppingKerasLinear(KerasPilot):
+    """
+    The KerasLinear pilot uses one neuron to output a continous value via the
+    Keras Dense layer with linear activation. One each for steering and
+    throttle. The output is not bounded.
+    """
+    def __init__(self, num_outputs=2, input_shape=(72, 160, 3)):
+        super().__init__()
+        self.model = default_n_linear(num_outputs, (72, 160, 3))
+
+
+    def compile(self):
+        self.model.compile(optimizer=self.optimizer, loss='mse')
+    def inference(self, img_arr, other_arr):
+        from PIL import Image
+        print(img_arr)
+        print(img_arr.shape)
+        im_trim = img_arr[55:120,...]
+
+        im_trim = im_trim.reshape((1,) + im_trim.shape)
+
+        outputs = self.model.predict(im_trim)
+        steering = outputs[0]
+        throttle = outputs[1]
+        Image.fromarray(im_trim).save("inside_inference.jpg", quality=100)
+        with open("steering_throttle", 'a') as outfile:
+            outfile.write("steering" + str(steering))
+            outfile.write("throttle" + str(throttle))
+        return steering[0][0], throttle[0][0]
+
+    def y_transform(self, record: TubRecord):
+        angle: float = record.underlying['user/angle']
+        throttle: float = record.underlying['user/throttle']
+        return angle, throttle
+
+    def y_translate(self, y: XY) -> Dict[str, Union[float, np.ndarray]]:
+        if isinstance(y, tuple):
+            angle, throttle = y
+            return {'n_outputs0': angle, 'n_outputs1': throttle}
+        else:
+            raise TypeError('Expected tuple')
+
+    def output_shapes(self):
+        # need to cut off None from [None, 120, 160, 3] tensor shape
+        img_shape = (65,160,3)
+        shapes = ({'img_in': tf.TensorShape(img_shape)},
+                  {'n_outputs0': tf.TensorShape([]),
+                   'n_outputs1': tf.TensorShape([])})
+        return shapes
+
+    def x_transform(self, record: TubRecord) -> XY:
+        from PIL import Image
+        img_arr = record.image(cached=True)
+        im_trim = img_arr[55:120, ...]
+        Image.fromarray(im_trim).show()
+        return im_trim
 
 class KerasMemory(KerasLinear):
     """
@@ -666,7 +722,7 @@ class KerasLocalizer(KerasPilot):
     def compile(self):
         self.interpreter.compile(optimizer=self.optimizer, metrics=['acc'],
                                  loss='mse')
-        
+
     def interpreter_to_output(self, interpreter_out) \
             -> Tuple[Union[float, np.ndarray], ...]:
         angle, throttle, track_loc = interpreter_out
@@ -1019,12 +1075,12 @@ def default_imu(num_outputs, num_imu_inputs, input_shape):
     x = core_cnn_layers(img_in, drop)
     x = Dense(100, activation='relu')(x)
     x = Dropout(.1)(x)
-    
+
     y = imu_in
     y = Dense(14, activation='relu')(y)
     y = Dense(14, activation='relu')(y)
     y = Dense(14, activation='relu')(y)
-    
+
     z = concatenate([x, y])
     z = Dense(50, activation='relu')(z)
     z = Dropout(.1)(z)
@@ -1034,7 +1090,7 @@ def default_imu(num_outputs, num_imu_inputs, input_shape):
     outputs = []
     for i in range(num_outputs):
         outputs.append(Dense(1, activation='linear', name='out_' + str(i))(z))
-        
+
     model = Model(inputs=[img_in, imu_in], outputs=outputs, name='imu')
     return model
 
@@ -1049,23 +1105,23 @@ def default_bhv(num_bvh_inputs, input_shape):
     x = core_cnn_layers(img_in, drop)
     x = Dense(100, activation='relu')(x)
     x = Dropout(.1)(x)
-    
+
     y = bvh_in
     y = Dense(num_bvh_inputs * 2, activation='relu')(y)
     y = Dense(num_bvh_inputs * 2, activation='relu')(y)
     y = Dense(num_bvh_inputs * 2, activation='relu')(y)
-    
+
     z = concatenate([x, y])
     z = Dense(100, activation='relu')(z)
     z = Dropout(.1)(z)
     z = Dense(50, activation='relu')(z)
     z = Dropout(.1)(z)
-    
+
     # Categorical output of the angle into 15 bins
     angle_out = Dense(15, activation='softmax', name='angle_out')(z)
     # Categorical output of throttle into 20 bins
     throttle_out = Dense(20, activation='softmax', name='throttle_out')(z)
-        
+
     model = Model(inputs=[img_in, bvh_in], outputs=[angle_out, throttle_out],
                   name='behavioral')
     return model
@@ -1078,7 +1134,7 @@ def default_loc(num_locations, input_shape):
     x = core_cnn_layers(img_in, drop)
     x = Dense(100, activation='relu')(x)
     x = Dropout(drop)(x)
-    
+
     z = Dense(50, activation='relu')(x)
     z = Dropout(drop)(z)
 
@@ -1212,7 +1268,7 @@ def default_latent(num_outputs, input_shape):
     x = Convolution2D(64, 3, strides=2, activation='relu', name="conv2d_7")(x)
     x = Dropout(drop)(x)
     x = Convolution2D(64, 1, strides=2, activation='relu', name="latent")(x)
-    
+
     y = Conv2DTranspose(filters=64, kernel_size=3, strides=2,
                         name="deconv2d_1")(x)
     y = Conv2DTranspose(filters=64, kernel_size=3, strides=2,
@@ -1224,7 +1280,7 @@ def default_latent(num_outputs, input_shape):
     y = Conv2DTranspose(filters=32, kernel_size=3, strides=2,
                         name="deconv2d_5")(y)
     y = Conv2DTranspose(filters=1, kernel_size=3, strides=2, name="img_out")(y)
-    
+
     x = Flatten(name='flattened')(x)
     x = Dense(256, activation='relu')(x)
     x = Dropout(drop)(x)
@@ -1236,6 +1292,6 @@ def default_latent(num_outputs, input_shape):
     outputs = [y]
     for i in range(num_outputs):
         outputs.append(Dense(1, activation='linear', name='n_outputs' + str(i))(x))
-        
+
     model = Model(inputs=[img_in], outputs=outputs, name='latent')
     return model

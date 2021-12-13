@@ -175,7 +175,7 @@ def load_pil_image(filename, cfg):
 
         if cfg.IMAGE_DEPTH == 1:
             img = img.convert('L')
-        
+
         return img
 
     except Exception as e:
@@ -435,7 +435,7 @@ def get_model_by_type(model_type: str, cfg: 'Config') -> 'KerasPilot':
     '''
     from donkeycar.parts.keras import KerasCategorical, KerasLinear, \
         KerasInferred, KerasIMU, KerasMemory, KerasBehavioral, KerasLocalizer, \
-        KerasLSTM, Keras3D_CNN
+        KerasLSTM, Keras3D_CNN, imageCroppingKerasLinear
     from donkeycar.parts.interpreter import KerasInterpreter, TfLite, TensorRT
 
     if model_type is None:
@@ -461,6 +461,8 @@ def get_model_by_type(model_type: str, cfg: 'Config') -> 'KerasPilot':
             throttle_range=cfg.MODEL_CATEGORICAL_MAX_THROTTLE_RANGE)
     elif used_model_type == 'inferred':
         kl = KerasInferred(interpreter=interpreter, input_shape=input_shape)
+    elif model_type == 'cropping_linear':
+        kl = imageCroppingKerasLinear()
     elif used_model_type == "imu":
         kl = KerasIMU(interpreter=interpreter, input_shape=input_shape)
     elif used_model_type == "memory":
