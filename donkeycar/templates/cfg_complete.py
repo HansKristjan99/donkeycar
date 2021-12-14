@@ -26,8 +26,8 @@ MAX_LOOPS = None        # the vehicle loop can abort after this many iterations,
 
 #CAMERA
 CAMERA_TYPE = "PICAM"   # (PICAM|WEBCAM|CVCAM|CSIC|V4L|D435|MOCK|IMAGE_LIST)
-IMAGE_W = 160  # for a CSIC camera this must be 224
-IMAGE_H = 120  # for a CSIC camera this must be 224
+IMAGE_W = 160
+IMAGE_H = 120
 IMAGE_DEPTH = 3         # default RGB=3, make 1 for mono
 CAMERA_FRAMERATE = DRIVE_LOOP_HZ
 CAMERA_VFLIP = False
@@ -152,7 +152,7 @@ AUGMENTATIONS = []
 TRANSFORMATIONS = []
 # Settings for brightness and blur, use 'MULTIPLY' and/or 'BLUR' in
 # AUGMENTATIONS
-AUG_MULTIPLY_RANGE = (0.5, 1.5)
+AUG_MULTIPLY_RANGE = (0.5, 3.0)
 AUG_BLUR_RANGE = (0.0, 3.0)
 # Region of interest cropping, requires 'CROP' in TRANSFORMATIONS to be set
 # If these crops values are too large, they will cause the stride values to
@@ -196,7 +196,7 @@ JOYSTICK_DEVICE_FILE = "/dev/input/js0" # this is the unix file use to access th
 #For the categorical model, this limits the upper bound of the learned throttle
 #it's very IMPORTANT that this value is matched from the training PC config.py and the robot.py
 #and ideally wouldn't change once set.
-MODEL_CATEGORICAL_MAX_THROTTLE_RANGE = 0.5
+MODEL_CATEGORICAL_MAX_THROTTLE_RANGE = 0.8
 
 #RNN or 3D
 SEQUENCE_LENGTH = 3             #some models use a number of images over time. This controls how many.
